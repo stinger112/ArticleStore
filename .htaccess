@@ -1,0 +1,41 @@
+DirectoryIndex handler.php
+
+# Настройки значений поумолчанию модуля mysqli
+#php_value mysqli.default_host localhost
+#php_value mysqli.default_user root
+#php_value mysqli.default_pw 
+# конец
+
+# Отображение ошибок
+php_flag display_errors 1
+#php_value error_reporting "E_ALL & ~E_DEPRECATED & ~E_STRICT"
+# конец
+
+php_flag session.auto_start 1
+#php_flag session.use_trans_sid 1
+
+# unicode support
+AddDefaultCharset utf-8
+<IfModule mod_charset.c>
+	CharsetDIsable on
+	CharsetRecodeMultipartForms Off
+</IfModule>
+php_value       mbstring.func_overload  7
+php_value       default_charset         UTF-8
+php_value       mbstring.language       Russian
+php_value       mbstring.internal_encoding      UTF-8
+php_flag        mbstring.encoding_translation   on
+php_value       mbstring.http_input     “UTF-8,KOI8-R,CP1251”
+php_value       mbstring.http_output    UTF-8
+php_value       mbstring.detect_order   “UTF-8,KOI8-R,CP1251”
+# end
+
+# Добавляем обработку .inc интерпретатором php
+AddHandler application/x-httpd-php .inc
+# конец
+
+# Запрещаем пользователям просматривать все файлы, начинающиеся с точки
+<Files .*>
+	Deny from all 
+</Files>
+# конец
