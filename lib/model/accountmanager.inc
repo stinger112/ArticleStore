@@ -48,7 +48,7 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 			{
 				$sql = 'SELECT * '
 						. ' FROM `user` '
-								. ' WHERE `login` = \'' . $array['login'] . '\' AND `pass` = \'' . $array['pass'] . '\'';
+						. ' WHERE `login` = \'' . $array['login'] . '\' AND `pass` = \'' . $array['pass'] . '\'';
 					
 				$this->arUser = array("login" => $array['login'], "pass" => $array['pass']); //Заполняем аккаунт из входного массива (если sql-запрос будет успешен, то аккаунт перезапишется и добавится $access = TRUE)
 			}
@@ -59,7 +59,7 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 			$hash = md5($hash); //Защита от команд злоумышленника в куках/сессиях
 			$sql = 'SELECT * '
 					. ' FROM `user` '
-							. '	WHERE `hash` = \'' . $hash . '\'';
+					. '	WHERE `hash` = \'' . $hash . '\'';
 		}
 		else
 			return FALSE;
@@ -157,7 +157,7 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 
 				$sql = 'UPDATE `user` '
 						. " SET `hash` = '" . md5($hash) . "', `lastlogin` = NOW()"
-								. " WHERE `id` = '" . $this->getUserID() . "'";
+						. " WHERE `id` = '" . $this->getUserID() . "'";
 					
 				if ($cookie)
 					if (!setcookie('ID', $hash, time()+3600))
