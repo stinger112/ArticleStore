@@ -15,7 +15,7 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 			
 		if (!is_dir('./text'))
 			if (!mkdir('./text'))
-			throw new RuntimeException("Can't create ./text directory for user {$arTextData['author']}");
+				throw new RuntimeException("Can't create ./text directory");
 			
 		if ($filePath)
 		{
@@ -27,35 +27,6 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 		}
 	}
 
-	/* protected function CreateDB()
-		{
-	$sql = 'CREATE DATABASE `content`';
-	if (!$this->getDB()->query($sql))
-		throw new mysqli_sql_exception($this->getDB()->error);
-
-	$sql = 'CREATE TABLE content.files ('
-			. '	`path`		VARCHAR(255)	NOT NULL, '
-			. '	`author`	VARCHAR(32)		NOT NULL, '
-			. '	`comment`	TEXT			NOT NULL, '
-			. '	`date`		TIMESTAMP		NOT NULL	DEFAULT CURRENT_TIMESTAMP, '
-			. '	PRIMARY KEY (`path`) '
-			. '	) '
-	. '	ENGINE = myisam; ';
-	if (!$this->getDB()->query($sql))
-		throw new mysqli_sql_exception($this->getDB()->error);
-
-	$sql = 'CREATE TABLE content.questions (' //Без первичного ключа
-			. '	`date`		TIMESTAMP		NOT NULL	DEFAULT CURRENT_TIMESTAMP, '
-			. '	`author`	VARCHAR(32)		NOT NULL, '
-			. '	`question`	TINYTEXT		NOT NULL '
-			. '	) '
-	. '	ENGINE = myisam; ';
-	if(!$this->getDB()->query($sql))
-		throw new mysqli_sql_exception($this->getDB()->error);
-
-	return TRUE;
-	}  */
-
 	###############################################Методы доступа к членам класса###############################################
 	private function associateWithText($path) //Ассоциирует объект TextFile с определенным файлом (согласно БД)
 	{
@@ -66,7 +37,7 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 
 			$sql = 'SELECT * '
 					. '	FROM `files` '
-							. '	WHERE `path` = \'' . $path . '\'';
+					. '	WHERE `path` = \'' . $path . '\'';
 			if ($qRes = $this->getDB()->query($sql))
 				if ($arRes = $qRes->fetch_assoc())
 				{
@@ -216,40 +187,39 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 	private function addText(array $arTextData)
 	{
 		unset($this->error); //Чистим от предыдущей ошибки
-		extract($arTextData);
+		extract($arTextData); //Создает: $name, $id, $author; $orig_name, $comment (опционально).
 			
 		//Решил не организовывать никаких дополнительных запросов имени автора, во ибежание лишних обращений к БД
 		//Все равно автор хранится внутри аккаунта в оперативной памяти
 		//Значительно проще (и целесообразнее) передавать его в массиве $arTextData
-		if (is_string($id) && is_string($text) && is_string($comment))
+		if (is_string($name) && is_string($id) && is_string($author))
 		{
-			$destination = "./text/". $author;
-
-			if (!is_dir($destination))
-				if (!mkdir($destination))
-				throw new RuntimeException("Can't create $destination directory for user $author");
-
-			$filename = hash("md5", $text);
-			$destination .= "/" . $filename . '.txt'; //Относительный путь добавляется в БД!
-			if (!file_exists($destination)) //Одинаковые тексты не добавляются
+			if (file_exists("./tmp/$name"))
 			{
-				if (file_put_contents($destination, $text))
+				$destination = "./text/". $author;
+				
+				if (!is_dir($destination))
+					if (!mkdir($destination))
+						throw new RuntimeException("Can't create $destination directory for user $author");
+				
+				$destination .= "/" . $name; //Этот относительный путь потом добавляется в БД
+				rename("./tmp/$name", $destination);
+				$sql = 'INSERT INTO files(path, original_name, user_id, comment)'
+						. "	VALUES ('$destination', '$orig_name', '$id', '$comment')";
+				if ($this->getDB()->query($sql))
 				{
-					$sql = 'INSERT INTO files(path, user_id, comment)'
-							. "	VALUES ('$destination', '$id', '$comment')";
-					if ($this->getDB()->query($sql))
-					{
-						//Устанавливаем ассоциацию объекта с файлом
-						$this->associateWithText($destination);
-						addInLog("File uploaded", $author);
-					}
+					//Устанавливаем ассоциацию объекта с файлом
+					$this->associateWithText($destination);
+					addInLog("File uploaded", $author);
 				}
+				else 
+					$this->error = "File didn't created. Probably file with that name is created";	
 			}
 			else
-				$this->error = "Такой текст уже существует";
-
-			return $this;
+				throw new RuntimeException("File ./tmp/$name didn't find");
 		}
+		
+		return $this;
 	}
 }
 ?>

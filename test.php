@@ -1,8 +1,8 @@
 <?php
 //session_start();
-echo "<pre>";
 var_dump($_SESSION);
 var_dump($_COOKIE);
+
 //var_dump(__FILE__);
 
 // 	phpinfo();

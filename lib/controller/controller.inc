@@ -169,26 +169,57 @@ class Upload_Controller extends Controller
 	function __construct()
 	{
 		parent::__construct();
+		
+		if (!is_dir('./tmp')) //Создаем папку tmp (если не было). В ней будут временно хранится тексты.
+		{
+			if (!mkdir('./tmp'))
+				throw new RuntimeException("Can't create ./tmp directory");
+			file_put_contents('./tmp/.htaccess', "Deny from all"); //Обновляем настройки апача на папку tmp
+		}
+	}
+	
+	private function clearTmp() //Очищаем папку tmp от текстов
+	{
+		$dir = './tmp';
+		
+		if (is_dir($dir))
+		{
+			if ($dh = opendir($dir))
+			{
+				while (($file = readdir($dh)) !== FALSE)
+				{
+					if (!substr_count($file, '.'))
+						unlink($dir . '/' . $file);
+				}
+				closedir($dh);
+			}
+		}
 	}
 
-	protected function filterInput(array $arInput) //Возвращает array['author']/['comment']/['text'] (author берется из текущего аккаунта)
+	protected function filterInput(array $arInput) //Возвращает array['name']/['orig_name'](опционально)/['comment'](опционально), где name - имя файла в папке tmp (уже безопасное).
 	{
+		//Метод не работает с папкой text, так как это противоречит концепции MVC (файлами управляет модель)
 		//Куда попадает содержимое полей
-		//['text'] => HTML
 		//['comment'] => HTML, SQL
+		//['name'] => HTML, SQL
 		if (strlen($arInput['comment']) <= MAX_COMMENT_SIZE)
 		{
 			if (!substr_count($arInput['comment'], "'")) //Защищаем SQL запрос
 			{
 				#############################################Блок добавления текста#############################################
-				if ($_FILES['file']['tmp_name'] != "none" && $_FILES['file']['size'] <= MAX_TEXT_SIZE && substr_count($_FILES['file']['type'], "text"))
+				if ($_FILES['file']['tmp_name'] && $_FILES['file']['size'] <= MAX_TEXT_SIZE)
 				{
-					$tmp_text = file_get_contents($_FILES['file']['tmp_name']);
-					$arOut['text'] = strip_tags($tmp_text);
-				}
+					$arOut['name'] = hash('md5', mt_rand());
+					move_uploaded_file($_FILES['file']['tmp_name'], './tmp/' . $arOut['name']);
+					
+					//Добавляем оригинальное имя файла
+					$arOut['orig_name'] = strip_tags($_FILES['file']['name']);
+					$arOut['orig_name'] = $this->getDB()->real_escape_string($arOut['orig_name']);
+				}	
 				elseif ($arInput['text'] && strlen($arInput['text']) <= MAX_TEXT_SIZE)
 				{
-					$arOut['text'] = strip_tags($arInput['text']);
+					$arOut['name'] = hash('md5', mt_rand());
+					file_put_contents('./tmp' . $arOut['name'], $arInput['text']);
 				}
 				else
 				{
@@ -196,9 +227,12 @@ class Upload_Controller extends Controller
 					return;
 				}
 				################################################################################################################
-					
-				$arOut['comment'] = strip_tags($arInput['comment']);
-				$arOut['comment'] = $this->getDB()->real_escape_string($arOut['comment']);
+				
+				if ($arInput['comment'])
+				{
+					$arOut['comment'] = strip_tags($arInput['comment']);
+					$arOut['comment'] = $this->getDB()->real_escape_string($arOut['comment']);
+				}
 					
 				return $arOut;
 			}
@@ -206,9 +240,7 @@ class Upload_Controller extends Controller
 				$this->getView()->addNotification("Комментарий содержит недопустимые символы!");
 		}
 		else
-		{
 			$this->getView()->addNotification("Слишком длинный комментарий! Max " . MAX_COMMENT_SIZE . " symbols.");
-		}
 	}
 
 	public function run()
@@ -219,11 +251,12 @@ class Upload_Controller extends Controller
 			return $this->getView()->displayPage('./forms/authform.inc');
 		}
 		$this->getAccount()->setSession();
-			
-		if ($arTextData = $this->getFilteredData())
+
+		if ($arTextData = $this->getFilteredData()) //Если массив $this->getFilteredData() пуст, то не создаем объект TextFile
 		{
 			$arTextData['id'] = $this->getAccount()->getUserID(); //Добавляем id пользователя
-			$arTextData['author'] = $this->getAccount()->getLogin(); //Дополняем автором (пояснения внутри соотв. метода)
+			$arTextData['author'] = $this->getAccount()->getLogin(); //Дополняем автора текущего аккаунта (пояснения внутри метода addText())
+			
 			$newText = new TextFile($this->getDB(), $arTextData);
 			if ($newText->getError())
 			{
@@ -231,9 +264,9 @@ class Upload_Controller extends Controller
 			}
 			else
 				$this->getView()->addNotification("Текст успешно добавлен");
-
 		}
-			
+		
+		$this->clearTmp();
 		$this->getView()->displayMain();
 	}
 }

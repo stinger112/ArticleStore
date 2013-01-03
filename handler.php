@@ -3,7 +3,6 @@
 require_once './lib/controller/controller.inc';
 require_once './settings/MyLittlePony.inc';
 header('Content-Type: text/html; charset=utf-8'); //Устанавливаем кодировку
-error_reporting(0);
 ########################################################
 
 if (isset($_GET['auth']))
