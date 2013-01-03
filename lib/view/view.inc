@@ -44,7 +44,7 @@ class View //Пока заглушка (поэтому содержит один
 	}
 	public function clearNotification()
 	{
-		$this->arNotification = __;
+		$this->arNotification = NULL;
 	}
 
 }
