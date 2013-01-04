@@ -161,7 +161,7 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 					
 				if ($cookie)
 					if (!setcookie('ID', $hash, time()+3600))
-					return FALSE;
+						return FALSE;
 
 				if (!$this->getDB()->query($sql))
 					return FALSE;
@@ -173,29 +173,5 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 			
 		return FALSE;
 	}
-
-	/*public function checkAccess() //Возвращает массив ['login']['pass'] если авторизация пройдена
-		{
-	if ($this->arUser)
-	{
-	$sql = 'SELECT * '
-	. ' FROM register.user '
-	. '	WHERE `login` = \'' . $this->arUser['login'] . '\' AND `pass` = \'' . $this->arUser['pass'] . '\'';
-	}
-	elseif ($_SESSION['ID'] or $_COOKIE['ID'])
-	{
-	$hash = $_SESSION['ID'] or $hash = $_COOKIE['ID'];
-	$hash = md5($hash); //Защита от команд злоумышленника в куках/сессиях
-	$sql = 'SELECT * '
-	. ' FROM register.user '
-	. '	WHERE `hash` = \'' . $hash . '\'';
-	}
-	else
-		return; //Internal data and session is empty
-
-	if ($qResult = $this->getDB()->query($sql))
-		if ($arResult = $qResult->fetch_assoc())
-		return $arResult;
-	}*/
 }
 ?>

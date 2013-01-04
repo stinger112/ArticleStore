@@ -98,7 +98,6 @@ class Authorization_Controller extends Controller //Контроллер авт�
 			$this->getView()->addNotification("Неверный логин или пароль!");
 			return $this->getView()->displayPage('./forms/authform.inc');
 		}
-
 		$this->getAccount()->setSession($_POST['mem']); //Сразу из POST, потому что является простым флагом, и не попадает никуда.
 			
 		$this->getView()->displayMain();
