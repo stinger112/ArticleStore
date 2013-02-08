@@ -177,7 +177,7 @@ class Upload_Controller extends Controller
 		}
 	}
 	
-	private function clearTmp() //Очищаем папку tmp от текстов
+	/* private function clearTmp() //Очищаем папку tmp от текстов
 	{
 		$dir = './tmp';
 		
@@ -193,7 +193,7 @@ class Upload_Controller extends Controller
 				closedir($dh);
 			}
 		}
-	}
+	} */
 
 	protected function filterInput(array $arInput) //Возвращает array['name']/['orig_name'](опционально)/['comment'](опционально), где name - имя файла в папке tmp (уже безопасное).
 	{
@@ -206,7 +206,7 @@ class Upload_Controller extends Controller
 			if (!substr_count($arInput['comment'], "'")) //Защищаем SQL запрос
 			{
 				#############################################Блок добавления текста#############################################
-				if ($_FILES['file']['tmp_name'] && $_FILES['file']['size'] <= MAX_TEXT_SIZE)
+				if ($_FILES['file']['tmp_name'] && $_FILES['file']['size'] <= MAX_TEXT_SIZE && substr_count($_FILES['file']['type'], "text"))
 				{
 					$arOut['name'] = hash('md5', mt_rand());
 					move_uploaded_file($_FILES['file']['tmp_name'], './tmp/' . $arOut['name']);
@@ -218,7 +218,7 @@ class Upload_Controller extends Controller
 				elseif ($arInput['text'] && strlen($arInput['text']) <= MAX_TEXT_SIZE)
 				{
 					$arOut['name'] = hash('md5', mt_rand());
-					file_put_contents('./tmp' . $arOut['name'], $arInput['text']);
+					file_put_contents('./tmp/' . $arOut['name'], $arInput['text']);
 				}
 				else
 				{
@@ -254,7 +254,7 @@ class Upload_Controller extends Controller
 		if ($arTextData = $this->getFilteredData()) //Если массив $this->getFilteredData() пуст, то не создаем объект TextFile
 		{
 			$arTextData['id'] = $this->getAccount()->getUserID(); //Добавляем id пользователя
-			$arTextData['author'] = $this->getAccount()->getLogin(); //Дополняем автора текущего аккаунта (пояснения внутри метода addText())
+			$arTextData['author'] = $this->getAccount()->getLogin(); //Добавляем логин текущего аккаунта (имя автора)
 			
 			$newText = new TextFile($this->getDB(), $arTextData);
 			if ($newText->getError())
@@ -265,7 +265,7 @@ class Upload_Controller extends Controller
 				$this->getView()->addNotification("Текст успешно добавлен");
 		}
 		
-		$this->clearTmp();
+		//$this->clearTmp(); //На всяий случай чистим папку tmp
 		$this->getView()->displayMain();
 	}
 }
@@ -279,7 +279,12 @@ class Search_Controller extends Controller
 
 	protected function filterInput(array $arInput)
 	{
-		return $arInput;
+		$arOut['SearchStr'] = mb_convert_encoding($arInput['query'], mb_detect_encoding($arInput['query']));
+		$arOut['Position'] = $arInput['position'];
+		$arOut['Case'] = $arInput['case'];
+		$arOut['View'] = $arInput['view'];
+		
+		return $arOut;
 	}
 
 	public function run()
@@ -290,8 +295,33 @@ class Search_Controller extends Controller
 			return $this->getView()->displayPage('./forms/authform.inc');
 		}
 		$this->getAccount()->setSession();
+		
+		if ($arQuestionData = $this->getFilteredData())
+		{
+			$arQuestionData['id'] = $this->getAccount()->getUserID(); //Добавляем id пользователя
+			$arQuestionData['author'] = $this->getAccount()->getLogin(); //Добавляем логин текущего аккаунта (имя автора)
 			
+			$arFiles = TextFile::searchGlobal($this->getDB(), $arQuestionData); //Получаем массив файлов, содержащих результаты поиска.
 			
+			if (is_array($arFiles))
+			{
+				if (0 === count($arFiles))
+					$this->getView()->addNotification("Didn't find the results");
+				#############################################################################################################
+				else //А здесь будет использоваться специфический объект представления результатов, но пока его НЕТ, ахаха
+				{
+					foreach ($arFiles as $file)
+					{
+						$this->getView()->addNotification("<pre>" . var_export($file->getResult($arQuestionData['View']), true) . "</pre>");
+					}
+				}
+				##########################################################################################################
+			}
+			else
+				$this->getView()->addNotification("Internal search error. Probably DB is unavaible."); //Добавляем последнюю ошибку
+				
+		}
+		
 		$this->getView()->displayMain();
 	}
 }

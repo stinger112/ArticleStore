@@ -8,25 +8,27 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 	//Массивы, хранящие результаты последнего поиска
 	private $arSentence; //$arSentence[НОМЕР_АБЗАЦА][НОМЕР_ПРЕДЛОЖЕНИЯ] = МАССИВ ФРАЗ В ДАННОМ ПРЕДЛОЖЕНИИ
 	private $arPhrase; //$arPhrase[НОМЕР_АБЗАЦА][НОМЕР_ПРЕДЛОЖЕНИЯ] = ФРАЗА
-
-	function __construct(mysqli $DBLink, array $arTextData = array(), $filePath)
+	
+	function __construct(mysqli $DBLink, $data)
 	{
-		parent::__construct($DBLink/*, 'content'*/);
+		parent::__construct($DBLink);
 			
 		if (!is_dir('./text'))
 			if (!mkdir('./text'))
 				throw new RuntimeException("Can't create ./text directory");
 			
-		if ($filePath)
+		if (is_array($data))
 		{
-			$this->associateWithText($filePath);
+			$this->addText($data);
+		}
+		elseif (is_string($data))
+		{
+			$this->associateWithText($data);
 		}
 		else
-		{
-			$this->addText($arTextData);
-		}
+			$this->error = "Внутренняя ошибка."; //Получен неверный тип аргумента
 	}
-
+	
 	###############################################Методы доступа к членам класса###############################################
 	private function associateWithText($path) //Ассоциирует объект TextFile с определенным файлом (согласно БД)
 	{
@@ -36,9 +38,10 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 			//$path = $arPath[0];
 
 			$sql = 'SELECT * '
-					. '	FROM `files` '
-					. '	WHERE `path` = \'' . $path . '\'';
+				. '	FROM `files` '
+				. '	WHERE `path` = \'' . $path . '\'';
 			if ($qRes = $this->getDB()->query($sql))
+			{
 				if ($arRes = $qRes->fetch_assoc())
 				{
 					$this->arFileInfo = $arRes;
@@ -49,6 +52,7 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 					$this->error = "Файл не найден";
 					return FALSE;
 				}
+			}
 		}
 	}
 
@@ -79,7 +83,7 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 		return $this->arFileInfo;
 	}
 
-	public function getResult($mode)
+	public function getResult($mode) //Возвращение параграфа пока не работает
 	{
 		switch ($mode)
 		{
@@ -105,9 +109,7 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 				break;
 		}
 	}
-	//Сделать метод возвращения результатов поиска
 	############################################################################################################################
-	//Определиться с форматом вывода результатов
 	public function search($SearchStr, $Position, $Case) //Запилить поддержку русского языка
 	{
 		//Чистим массивы от предыдущих результатов, что бы они не попали в новый поиск
@@ -122,26 +124,27 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 				$Case = 'i';
 			$SearchStr = trim($SearchStr); //Возможно это не задача модели
 			$SearchStr = preg_quote($SearchStr, '/'); //И это тоже
-			$SentencePattern = '/(?<![A-ZА-Я])[\.?!…‼]+\s*(?=[A-ZА-Я][^\.]|$)/'; //Взял с sanych.net (чтоб не велосипедить)
+			$SentencePattern = '/(?<![A-ZА-Я])[\.?!…‼]+\s*(?=[A-ZА-Я][^\.]|$)/u'; //Взял с sanych.net (чтоб не велосипедить)
 			$PhrasePattern;
 			// 				$IncludedSymbols = '-\"\(\)\w\s';
 			switch ($Position)
 			{
 				case 'nfnl':
-					$PhrasePattern = '/((?!\A)|[-\"\(\)\w\s]+)' . $SearchStr . '([-\"\(\)\w\s]+|(?!\Z))/' . $Case;
+					$PhrasePattern = '/((?!\A)|[-\"\(\)\w\s]+)' . $SearchStr . '([-\"\(\)\w\s]+|(?!\Z))/u' . $Case;
 					break;
 				case 'first':
-					$PhrasePattern = '/^' . $SearchStr . '[-"\(\)\w\s]*/' . $Case; //возможна добавление игнорируемых знаков препинания ( пока -")( )
+					$PhrasePattern = '/^' . $SearchStr . '[-"\(\)\w\s]*/u' . $Case; //возможна добавление игнорируемых знаков препинания ( пока -")( )
 					break;
 				case 'last':
-					$PhrasePattern = '/[-"\(\)\w\s]*' . $SearchStr . '$/' . $Case;
+					$PhrasePattern = '/[-"\(\)\w\s]*' . $SearchStr . '$/u' . $Case;
 					break;
 				default:
-					$PhrasePattern = '/[-"\(\)\w\s]*' . $SearchStr . '[-"\(\)\w\s]*/' . $Case;
+					$PhrasePattern = '/[-"\(\)\w\s]*' . $SearchStr . '[-"\(\)\w\s]*/u' . $Case;
 					break;
 			}
 
-			$arText = explode("\n", $this->getText()); //Разбиваем текст на абзацы (можно тоже сделать регуляркой)
+			$arText = explode("\n", $this->getText()); 
+			//$arText = preg_split("/[\s,]+/", $this->getText()); //Разбиваем текст на абзацы (можно тоже сделать регуляркой, но так быстрее)
 			foreach ($arText as $ParagraphNumber => &$arParagraph) //Формируем параграфы
 			{
 				$arParagraph = preg_split($SentencePattern, $arParagraph, NULL, PREG_SPLIT_NO_EMPTY); //Почему-то все-равно возвращает пустые абзацы
@@ -157,33 +160,40 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 			}
 
 			return $this;
-		}
-			
+		}	
 	}
 
-	static public function searchGlobal(mysqli $db, $SearchStr, $Position, $Case)
+	static public function searchGlobal(mysqli $db, $arQuestionData)
 	{
-		$sql = 'SELECT files.path '
-				. '	FROM `files` ';
-		$arFilePath = $this->getDB()->query($sql)->fetch_assoc(); //Получили массив путей
-			
-		foreach ($arFilePath as $path) //Делаем массив объектов (ключ массива - путь к файлу)
-		{
-			$tmpFile = new TextFile($db, $path);
-			$tmpFile->search($SearchStr, $Position, $Case);
-
-			if ($tmpFile->getResult()) //Проверяем есть ли в текущем тексте результаты поиска
-			{
-				$arFiles["$path"] = $tmpFile;
-			}
-				
-		}
-			
-		//Добавляем запрос в БД
-
-		return $arFiles;
-	}
+		extract($arQuestionData); //Создает: $SearchStr, $Position, $Case, $id, $author
 		
+		$sql = 'INSERT INTO questions(question, user_id)'
+			. "	VALUES ('$SearchStr', '$id')";
+		if ($db->query($sql)) //Добавляем запрос в БД. Начинаем процедуру поиска если добавился
+		{
+			$arFiles = array(); //В случае отсутствия результатов вернется пустой массив
+			
+			$sql = 'SELECT files.path '
+				. '	FROM `files` ';
+			$arFilePath = $db->query($sql)->fetch_assoc(); //Получили массив путей
+				
+			foreach ($arFilePath as $path) //Делаем массив объектов (ключ массива - путь к файлу)
+			{
+				$tmpFile = new TextFile($db, $path);
+				$tmpFile->search($SearchStr, $Position, $Case);
+	
+				if ($tmpFile->getResult()) //Проверяем есть ли в текущем тексте результаты поиска
+				{
+					$arFiles["$path"] = $tmpFile;
+				}
+			}
+	
+			addInLog("Search question: '$SearchStr' with position '$Position'", $author); //Добавляем запрос в лог
+			
+			return $arFiles; 
+		}
+	}
+	
 	private function addText(array $arTextData)
 	{
 		unset($this->error); //Чистим от предыдущей ошибки
@@ -205,12 +215,12 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 				$destination .= "/" . $name; //Этот относительный путь потом добавляется в БД
 				rename("./tmp/$name", $destination);
 				$sql = 'INSERT INTO files(path, original_name, user_id, comment)'
-						. "	VALUES ('$destination', '$orig_name', '$id', '$comment')";
+					. "	VALUES ('$destination', '$orig_name', '$id', '$comment')";
 				if ($this->getDB()->query($sql))
 				{
 					//Устанавливаем ассоциацию объекта с файлом
 					$this->associateWithText($destination);
-					addInLog("File uploaded", $author);
+					addInLog("File '$name' uploaded", $author);
 				}
 				else 
 					$this->error = "File didn't created. Probably file with that name is created";	
