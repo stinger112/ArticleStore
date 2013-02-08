@@ -1,13 +1,13 @@
 DirectoryIndex handler.php
 
-# Настройки значений поумолчанию модуля mysqli
+# Настройки значений по-умолчанию модуля mysqli
 #php_value mysqli.default_host localhost
 #php_value mysqli.default_user root
 #php_value mysqli.default_pw 
 # конец
 
 # Отображение ошибок
-php_flag display_errors 1
+php_flag display_errors 0
 #php_value error_reporting "E_ALL & ~E_DEPRECATED & ~E_STRICT"
 # конец
 

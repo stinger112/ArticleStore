@@ -1,11 +1,20 @@
 <?php
-//session_start();
+
+require_once './lib/model/textmanager.inc';
+
+
+/* echo "\$_SESSION:\n";
 var_dump($_SESSION);
+
+echo "ID hash:\n";
+var_dump(md5($_SESSION['ID']));
+
+echo "\$_COOKIE:\n";
 var_dump($_COOKIE);
 
 //var_dump(__FILE__);
 
-// 	phpinfo();
+//	phpinfo();
 //	require_once './settings/MyLittlePony0.inc';
 //	$db = new mysqli(MYSQL_SERVER, MYSQL_LOGIN, MYSQL_PASSWORD, MYSQL_NAME);
 //	var_dump($db->character_set_name());
