@@ -1,7 +1,10 @@
 <?php
 
-require_once './lib/model/textmanager.inc';
+//require_once './lib/model/textmanager.inc';
+$foo = array('a' => array(1,2), 'b' => array(3,4), 'c' => array(5,6));
 
+$foo = array_values($foo);
+var_dump($foo);
 
 /* echo "\$_SESSION:\n";
 var_dump($_SESSION);

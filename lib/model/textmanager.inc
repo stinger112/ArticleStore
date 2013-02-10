@@ -5,11 +5,9 @@ require_once './lib/model/model.inc';
 class TextFile extends Model_Common //Инкапсулирует структуру файла и методы работы с ним
 {
 	private $arFileInfo; //Содержит информацию о файле согласно структуре БД
-	//Массивы, хранящие результаты последнего поиска
-	private $arSentence; //$arSentence[НОМЕР_АБЗАЦА][НОМЕР_ПРЕДЛОЖЕНИЯ] = МАССИВ ФРАЗ В ДАННОМ ПРЕДЛОЖЕНИИ
-	private $arPhrase; //$arPhrase[НОМЕР_АБЗАЦА][НОМЕР_ПРЕДЛОЖЕНИЯ] = ФРАЗА
+	private $arResult; //Содержит результаты последнего поиска
 	
-	function __construct(mysqli $DBLink, $data)
+	function __construct(mysqli $DBLink, $data, AccountManager $account = NULL)
 	{
 		parent::__construct($DBLink);
 			
@@ -19,7 +17,7 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 			
 		if (is_array($data))
 		{
-			$this->addText($data);
+			$this->addText($data, $account);
 		}
 		elseif (is_string($data))
 		{
@@ -34,9 +32,6 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 	{
 		if (is_string($path) && is_file($path))
 		{
-			//$arPath = glob("./text/*/$filename.txt"); //Делаем поиск по всей папке text и находим адрес файла, поковыряться с настройкой include_path
-			//$path = $arPath[0];
-
 			$sql = 'SELECT * '
 				. '	FROM `files` '
 				. '	WHERE `path` = \'' . $path . '\'';
@@ -56,21 +51,6 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 		}
 	}
 
-	public function getTopQuestionsList($NumbersOfQuestions = 5)
-	{
-		if (is_int($NumbersOfQuestions) and ($NumbersOfQuestions =! 0)) //Заменить на filter_var
-		{
-			echo "my $NumbersOfQuestions\n";
-
-			$result = "заглушка";
-			return $result;
-		}
-		else
-		{
-			return FALSE;
-		}
-	}
-
 	public function getText() //Получить текст в виде строки
 	{
 		$path = $this->arFileInfo['path'];
@@ -83,57 +63,56 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 		return $this->arFileInfo;
 	}
 
-	public function getResult($mode) //Возвращение параграфа пока не работает
+	public function getResult() //Возвращение параграфа пока не работает
 	{
-		switch ($mode)
-		{
-			case 'paragraph':
-				$arText = explode("\n", $this->getText()); //Разбиваем текст на абзацы
-				//Узнаем номера абзацев и возвращем массив по соотв. номерам
-				return $arText["$i"];
-				break;
-					
-			case 'sentence':
-				return $this->arSentence;
-				break;
-					
-			case 'phrase':
-				return $this->arPhrase;
-				break;
-					
-			default:
-				if ($this->arSentence === array())
-					return FALSE;
-				else
-					return TRUE;
-				break;
-		}
+		return $this->arResult;
 	}
 	############################################################################################################################
-	public function search($SearchStr, $Position, $Case) //Запилить поддержку русского языка
+	static public function getFilePathsList ()
 	{
-		//Чистим массивы от предыдущих результатов, что бы они не попали в новый поиск
-		unset($this->arPhrase);
-		unset($this->arSentence);
-			
+		$arFiles = array(); //В случае отсутствия результатов вернется пустой массив
+		
+		$sql = 'SELECT path '
+			. '	FROM `files` ';
+		$arFilePath = $db->query($sql)->fetch_all(MYSQLI_ASSOC); //Получили массив путей
+		
+		foreach ($arFilePath as $row) //Делаем массив объектов (ключ массива - путь к файлу)
+		{
+			$tmpFile = new TextFile($db, $row['path']);
+		
+			if ($tmpFile->search($SearchStr, $Position, $Case, $View)) //Выполняем поиск в текущем файле
+				$arFiles[] = $tmpFile;
+		}
+		
+		return $arFiles;
+	}
+	
+	public function search($SearchStr, $Position, $Case, $mode) //Поиск по текущему текстовому файлу. Заполняет собой массив $arResult
+	{
 		if (is_string($SearchStr))
 		{
+			//Чистим массивы от предыдущих результатов, что бы они не попали в новый поиск
+			unset($this->arResult);
+			
 			if ($Case)
 				$Case = '';
 			else
 				$Case = 'i';
-			$SearchStr = trim($SearchStr); //Возможно это не задача модели
-			$SearchStr = preg_quote($SearchStr, '/'); //И это тоже
+			
+			//Дополнительное формирование поискового запроса
+			$SearchStr = trim($SearchStr);
+			$SearchStr = preg_quote($SearchStr, '/');
+			
 			$SentencePattern = '/(?<![A-ZА-Я])[\.?!…‼]+\s*(?=[A-ZА-Я][^\.]|$)/u'; //Взял с sanych.net (чтоб не велосипедить)
-			$PhrasePattern;
-			// 				$IncludedSymbols = '-\"\(\)\w\s';
+			
+			//$IncludedSymbols = '-\"\(\)\w\s'; //Возможно добавление игнорируемых знаков препинания. Текущие символы: -")(
 			switch ($Position)
 			{
 				case 'nfnl':
 					$PhrasePattern = '/((?!\A)|[-\"\(\)\w\s]+)' . $SearchStr . '([-\"\(\)\w\s]+|(?!\Z))/u' . $Case;
 					break;
 				case 'first':
-					$PhrasePattern = '/^' . $SearchStr . '[-"\(\)\w\s]*/u' . $Case; //возможна добавление игнорируемых знаков препинания ( пока -")( )
+					$PhrasePattern = '/^' . $SearchStr . '[-"\(\)\w\s]*/u' . $Case;
 					break;
 				case 'last':
 					$PhrasePattern = '/[-"\(\)\w\s]*' . $SearchStr . '$/u' . $Case;
@@ -142,94 +121,169 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 					$PhrasePattern = '/[-"\(\)\w\s]*' . $SearchStr . '[-"\(\)\w\s]*/u' . $Case;
 					break;
 			}
-
-			$arText = explode("\n", $this->getText()); 
-			//$arText = preg_split("/[\s,]+/", $this->getText()); //Разбиваем текст на абзацы (можно тоже сделать регуляркой, но так быстрее)
-			foreach ($arText as $ParagraphNumber => &$arParagraph) //Формируем параграфы
+						
+			$arText = preg_split("/\n\s*/", $this->getText(), -1, PREG_SPLIT_NO_EMPTY); //Разбиваем текст на абзацы
+			foreach ($arText as $ParagraphIndex => $arParagraph) //Формируем параграфы
 			{
-				$arParagraph = preg_split($SentencePattern, $arParagraph, NULL, PREG_SPLIT_NO_EMPTY); //Почему-то все-равно возвращает пустые абзацы
-				foreach ($arParagraph as $SentenceNumber => &$Sentence)
+				$arParagraph = preg_split($SentencePattern, $arParagraph, -1, PREG_SPLIT_NO_EMPTY); //Разбиваем текущий абзац на предложения
+				//В целях оптимизации не создаем внутренней локальной копии и работаем по ссылке со значениями массива $arParagraph
+				switch ($mode) //Находим все совпадения в текущем предложении и заполняем $arResult
 				{
-					$Sentence = trim($Sentence); //Обязательно! (в частности удаляет виндовый \r в последнем предложении абзаца)
-					if(preg_match_all($PhrasePattern, $Sentence, $arTmpPhrase)) //Находит все совпадения в текущем предложении. Сохраняет все фразы в массив $arTmpPhrase[0]
-					{
-						$this->arSentence[$ParagraphNumber][$SentenceNumber] = $Sentence;
-						$this->arPhrase[$ParagraphNumber][$SentenceNumber] = $arTmpPhrase[0];
-					}
+					case 'phrase':
+						foreach ($arParagraph as &$Sentence)
+						{
+							if(preg_match_all($PhrasePattern, $Sentence, $arTmpPhrase))
+							{
+								if (is_array($this->arResult)) //Условие необходимо для корректной работы array_merge()
+									$this->arResult = array_merge($this->arResult, $arTmpPhrase[0]);
+								else 
+									$this->arResult = $arTmpPhrase[0];
+							}
+						}
+						break;
+					case 'sentence':
+						foreach ($arParagraph as &$Sentence) 
+						{
+							if(preg_match($PhrasePattern, $Sentence)) 
+								$this->arResult[] = $Sentence;
+						}
+						break;
+					case 'paragraph':
+						foreach ($arParagraph as &$Sentence)
+						{
+							if(preg_match($PhrasePattern, $Sentence))
+								$flag = TRUE;
+						}			
+						if ($flag)
+							$this->arResult[] = $arText[$ParagraphIndex];
+						break;
+					default: //Возвращает число совпадений
+						foreach ($arParagraph as &$Sentence)
+						{
+							$this->arResult += preg_match_all($PhrasePattern, $Sentence);
+						}
+						break;
 				}
 			}
-
-			return $this;
-		}	
+			
+			return $this->arResult;
+		}
 	}
 
-	static public function searchGlobal(mysqli $db, $arQuestionData)
+	static public function searchGlobal(mysqli $db, $arQuestionData, AccountManager $account)
 	{
-		extract($arQuestionData); //Создает: $SearchStr, $Position, $Case, $id, $author
+		/* Создаем и заполняем соответствующие переменные: */
+		$SearchStr;
+		$Position;
+		$Case;
+		$View;
+		extract($arQuestionData);
 		
 		$sql = 'INSERT INTO questions(question, user_id)'
-			. "	VALUES ('$SearchStr', '$id')";
+			. "	VALUES ('$SearchStr', '" . $account->getUserID() . "')";
 		if ($db->query($sql)) //Добавляем запрос в БД. Начинаем процедуру поиска если добавился
 		{
 			$arFiles = array(); //В случае отсутствия результатов вернется пустой массив
 			
-			$sql = 'SELECT files.path '
+			$sql = 'SELECT path '
 				. '	FROM `files` ';
-			$arFilePath = $db->query($sql)->fetch_assoc(); //Получили массив путей
+			$arFilePath = $db->query($sql)->fetch_all(MYSQLI_ASSOC); //Получили массив путей
 				
-			foreach ($arFilePath as $path) //Делаем массив объектов (ключ массива - путь к файлу)
+			foreach ($arFilePath as $row) //Делаем массив объектов (ключ массива - путь к файлу)
 			{
-				$tmpFile = new TextFile($db, $path);
-				$tmpFile->search($SearchStr, $Position, $Case);
+				$tmpFile = new TextFile($db, $row['path']);
 	
-				if ($tmpFile->getResult()) //Проверяем есть ли в текущем тексте результаты поиска
-				{
-					$arFiles["$path"] = $tmpFile;
-				}
+				if ($tmpFile->search($SearchStr, $Position, $Case, $View)) //Выполняем поиск в текущем файле
+					$arFiles[] = $tmpFile;
 			}
-	
-			addInLog("Search question: '$SearchStr' with position '$Position'", $author); //Добавляем запрос в лог
+			
+			addInLog("Search question: '$SearchStr' with position '$Position'", $account->getLogin()); //Добавляем запрос в лог
 			
 			return $arFiles; 
 		}
 	}
 	
-	private function addText(array $arTextData)
+	private function addText(array $arTextData, AccountManager $account)
 	{
 		unset($this->error); //Чистим от предыдущей ошибки
-		extract($arTextData); //Создает: $name, $id, $author; $orig_name, $comment (опционально).
+		
+		/* Создаем и заполняем соответствующие переменные: */
+		$name;
+		$orig_name;
+		$comment; //Переменная заполняется опционально, в случае присутсвия комментария
+		extract($arTextData);
 			
 		//Решил не организовывать никаких дополнительных запросов имени автора, во ибежание лишних обращений к БД
 		//Все равно автор хранится внутри аккаунта в оперативной памяти
 		//Значительно проще (и целесообразнее) передавать его в массиве $arTextData
-		if (is_string($name) && is_string($id) && is_string($author))
+		if (is_string($name))
 		{
 			if (file_exists("./tmp/$name"))
 			{
-				$destination = "./text/". $author;
+				$destination = "./text/". $account->getLogin();
 				
 				if (!is_dir($destination))
 					if (!mkdir($destination))
-						throw new RuntimeException("Can't create $destination directory for user $author");
+						throw new RuntimeException("Can't create $destination directory for user " . $account->getLogin());
 				
 				$destination .= "/" . $name; //Этот относительный путь потом добавляется в БД
 				rename("./tmp/$name", $destination);
 				$sql = 'INSERT INTO files(path, original_name, user_id, comment)'
-					. "	VALUES ('$destination', '$orig_name', '$id', '$comment')";
+					. "	VALUES ('$destination', '$orig_name', '" . $account->getUserID() . "', '$comment')";
 				if ($this->getDB()->query($sql))
 				{
-					//Устанавливаем ассоциацию объекта с файлом
-					$this->associateWithText($destination);
-					addInLog("File '$name' uploaded", $author);
+					$this->associateWithText($destination);	//Извлекаются все данные соответственно структуре БД
+					addInLog("File '$name' uploaded", $account->getLogin());
 				}
 				else 
-					$this->error = "File didn't created. Probably file with that name is created";	
+					$this->error = "File didn't created. Probably file with that name is created";
 			}
 			else
 				throw new RuntimeException("File ./tmp/$name didn't find");
 		}
 		
 		return $this;
+	}
+}
+
+class Question extends Model_Common
+{
+	private $arQuestionInfo; //Содержит информацию о последнем поисковом запросе
+	
+	function __construct(mysqli $DBLink, $arQuestionData, AccountManager $account)
+	{
+		parent::__construct($DBLink);
+		
+		/* Создаем и заполняем соответствующие переменные: */
+		$SearchStr;
+		$Position;
+		$Case;
+		$View;
+		extract($arQuestionData);
+		
+		$this->arQuestionInfo;
+		
+		$sql = 'INSERT INTO questions(question, position, case, user_id)'
+			. "	VALUES ('$SearchStr', '$Position', '$Case','" . $account->getUserID() . "')";
+		if ($this->getDB()->query($sql))
+			addInLog("Search question: '$SearchStr' with position '$Position'", $account->getLogin()); //Добавляем запрос в лог
+		else
+			$this->error = "Не выполнено фиксирование статистики в БД";
+	}
+	
+	static public function getTopQuestionsList($NumbersOfQuestions = 5) //СДЕЛАТЬ
+	{
+		if (is_int($NumbersOfQuestions) and ($NumbersOfQuestions =! 0)) //Заменить на filter_var
+		{
+			echo "my $NumbersOfQuestions\n";
+	
+			$result = "заглушка";
+			return $result;
+		}
+		else
+		{
+			return FALSE;
+		}
 	}
 }
 ?>

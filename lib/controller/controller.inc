@@ -253,10 +253,7 @@ class Upload_Controller extends Controller
 
 		if ($arTextData = $this->getFilteredData()) //Если массив $this->getFilteredData() пуст, то не создаем объект TextFile
 		{
-			$arTextData['id'] = $this->getAccount()->getUserID(); //Добавляем id пользователя
-			$arTextData['author'] = $this->getAccount()->getLogin(); //Добавляем логин текущего аккаунта (имя автора)
-			
-			$newText = new TextFile($this->getDB(), $arTextData);
+			$newText = new TextFile($this->getDB(), $arTextData, $this->getAccount());
 			if ($newText->getError())
 			{
 				$this->getView()->addNotification($newText->getError()); //Добавляем последнюю ошибку
@@ -301,7 +298,7 @@ class Search_Controller extends Controller
 			$arQuestionData['id'] = $this->getAccount()->getUserID(); //Добавляем id пользователя
 			$arQuestionData['author'] = $this->getAccount()->getLogin(); //Добавляем логин текущего аккаунта (имя автора)
 			
-			$arFiles = TextFile::searchGlobal($this->getDB(), $arQuestionData); //Получаем массив файлов, содержащих результаты поиска.
+			$arFiles = TextFile::searchGlobal($this->getDB(), $arQuestionData, $this->getAccount()); //Получаем массив файлов, содержащих результаты поиска.
 			
 			if (is_array($arFiles))
 			{
@@ -312,7 +309,7 @@ class Search_Controller extends Controller
 				{
 					foreach ($arFiles as $file)
 					{
-						$this->getView()->addNotification("<pre>" . var_export($file->getResult($arQuestionData['View']), true) . "</pre>");
+						$this->getView()->addNotification("<pre>" . var_export($file->getResult(), true) . "</pre>");
 					}
 				}
 				##########################################################################################################

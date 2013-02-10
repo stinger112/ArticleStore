@@ -11,8 +11,8 @@
 		<input type="radio"	name="position"	value="any" checked> Anywhere<br>
 	</p>	
 	<p>Result view:<br>
-		<input type="radio"	name="view"	value="phrase"	checked> Phrase<br>
-		<input type="radio"	name="view"	value="sentence"> Sentence<br>
+		<input type="radio"	name="view"	value="phrase"> Phrase<br>
+		<input type="radio"	name="view"	value="sentence" checked> Sentence<br>
 		<input type="radio"	name="view"	value="paragraph"> Paragraph<br>
 	</p>
 </form>
