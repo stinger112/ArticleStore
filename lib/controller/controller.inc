@@ -152,7 +152,7 @@ class Registration_Controller extends Controller
 			$this->getView()->displayPage('./forms/regform.inc');
 		}
 		elseif ($createResult === NULL)
-		$this->getView()->displayPage('./forms/regform.inc');
+			$this->getView()->displayPage('./forms/regform.inc');
 		else
 		{
 			$this->getView()->displayPage('./forms/regsuccess.html');
@@ -195,7 +195,7 @@ class Upload_Controller extends Controller
 		}
 	} */
 
-	protected function filterInput(array $arInput) //Возвращает array['name']/['orig_name'](опционально)/['comment'](опционально), где name - имя файла в папке tmp (уже безопасное).
+	protected function filterInput(array $arInput) //Возвращает array['name']/['original_name'](опционально)/['comment'](опционально), где name - имя файла в папке tmp (уже безопасное).
 	{
 		//Метод не работает с папкой text, так как это противоречит концепции MVC (файлами управляет модель)
 		//Куда попадает содержимое полей
@@ -212,8 +212,8 @@ class Upload_Controller extends Controller
 					move_uploaded_file($_FILES['file']['tmp_name'], './tmp/' . $arOut['name']);
 					
 					//Добавляем оригинальное имя файла
-					$arOut['orig_name'] = strip_tags($_FILES['file']['name']);
-					$arOut['orig_name'] = $this->getDB()->real_escape_string($arOut['orig_name']);
+					$arOut['original_name'] = strip_tags($_FILES['file']['name']);
+					$arOut['original_name'] = $this->getDB()->real_escape_string($arOut['original_name']);
 				}	
 				elseif ($arInput['text'] && strlen($arInput['text']) <= MAX_TEXT_SIZE)
 				{
@@ -255,9 +255,7 @@ class Upload_Controller extends Controller
 		{
 			$newText = new TextFile($this->getDB(), $arTextData, $this->getAccount());
 			if ($newText->getError())
-			{
 				$this->getView()->addNotification($newText->getError()); //Добавляем последнюю ошибку
-			}
 			else
 				$this->getView()->addNotification("Текст успешно добавлен");
 		}
@@ -276,12 +274,37 @@ class Search_Controller extends Controller
 
 	protected function filterInput(array $arInput)
 	{
-		$arOut['SearchStr'] = mb_convert_encoding($arInput['query'], mb_detect_encoding($arInput['query']));
-		$arOut['Position'] = $arInput['position'];
-		$arOut['Case'] = $arInput['case'];
-		$arOut['View'] = $arInput['view'];
-		
-		return $arOut;
+		if ($arInput['query'])
+		{
+			if (strlen($arInput['query']) < 256)
+			{
+				$arOut['question'] = mb_convert_encoding($arInput['query'], mb_detect_encoding($arInput['query']));
+				$arOut['question'] = trim($arOut['question']);
+				$arOut['question'] = strip_tags($arOut['question']);
+				$arOut['question'] = $this->getDB()->real_escape_string($arOut['question']);
+				
+				$arOut['case'] = $arInput['case'] ? '1' : '0';
+				
+				if ('first' === $arInput['position'] || 'nfnl' === $arInput['position'] || 'last' === $arInput['position'])
+					$arOut['position'] = $arInput['position'];
+				else
+					$arOut['position'] = 'any';
+				
+				if ('phrase' === $arInput['view'] || 'paragraph' === $arInput['view'])
+					$arOut['view'] = $arInput['view'];
+				else
+					$arOut['view'] = 'sentence';
+				
+				$arOut['nostat'] = isset($arInput['nostat']); //Флаг статистики
+				$arOut['start'] = (int)$arInput['start']; //Стартовая позиция пагинации
+				
+				return $arOut;
+			}
+			else
+				$this->getView()->addNotification("Слишком длинный запрос");
+		}
+		else 
+			$this->getView()->addNotification("Введите поисковый запрос");
 	}
 
 	public function run()
@@ -295,31 +318,60 @@ class Search_Controller extends Controller
 		
 		if ($arQuestionData = $this->getFilteredData())
 		{
-			$arQuestionData['id'] = $this->getAccount()->getUserID(); //Добавляем id пользователя
-			$arQuestionData['author'] = $this->getAccount()->getLogin(); //Добавляем логин текущего аккаунта (имя автора)
+			/* Завершаем формирование $arQuestionData */
+			$start = $arQuestionData['start'];
+			unset($arQuestionData['start']);
 			
-			$arFiles = TextFile::searchGlobal($this->getDB(), $arQuestionData, $this->getAccount()); //Получаем массив файлов, содержащих результаты поиска.
+			/* Генерируем новый запрос и проводим его */
+			$question = new Question($this->getDB(), $arQuestionData);
 			
-			if (is_array($arFiles))
-			{
-				if (0 === count($arFiles))
-					$this->getView()->addNotification("Didn't find the results");
-				#############################################################################################################
-				else //А здесь будет использоваться специфический объект представления результатов, но пока его НЕТ, ахаха
-				{
-					foreach ($arFiles as $file)
-					{
-						$this->getView()->addNotification("<pre>" . var_export($file->getResult(), true) . "</pre>");
-					}
-				}
-				##########################################################################################################
-			}
+			if ($question->query($this->getAccount())) //Проводим запрос
+				$this->getView()->addQuestion($question, new Pagination($start));
 			else
-				$this->getView()->addNotification("Internal search error. Probably DB is unavaible."); //Добавляем последнюю ошибку
-				
+				$this->getView()->addNotification("По вашему запросу ничего не найдено");
 		}
 		
 		$this->getView()->displayMain();
+	}
+}
+
+class Detail_Controller extends Controller
+{
+	function __construct()
+	{
+		parent::__construct();
+	}
+	
+	protected function filterInput(array $arInput)
+	{
+		if (preg_match('/[0-9a-z]{32}/', $arInput['name']))
+		{
+			$arOut['name'] = $arInput['name'];
+			return $arOut;
+		}
+	}
+	
+	public function run()
+	{
+		if (!$this->getAccount()->checkAccess())
+		{
+			$this->getView()->clearNotification();
+			return $this->getView()->displayPage('./forms/authform.inc');
+		}
+		$this->getAccount()->setSession();
+		
+		if ($arDetailRequest = $this->getFilteredData())
+		{
+			
+			$path = './text/testuser/' . $arDetailRequest['name'];
+			$this->getView()->displayText(new TextFile($this->getDB(), $path));
+		}
+		else //Здесь должен быть НОРМАЛЬНЫЙ редирект на пользовательскую 404
+		{
+			header("HTTP/1.0 404 Not Found");
+			echo '404 ololo';
+		}
+		
 	}
 }
 ?>

@@ -8,31 +8,10 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 
 	function __construct(mysqli $DBLink, array $arInput = array())
 	{
-		parent::__construct($DBLink/*, 'register'*/);
+		parent::__construct($DBLink);
 			
 		$this->setAccount($arInput); //Заполнение из входного массива/кук
 	}
-
-	/* protected function createDB()
-		{
-	$sql = 'CREATE DATABASE `register`';
-	if (!$this->getDB()->query($sql))
-		throw new mysqli_sql_exception($this->getDB()->error);
-		
-	$sql = 'CREATE TABLE register.user ('
-			. ' `login`			VARCHAR(32)	NOT NULL, '
-			. ' `pass`			VARCHAR(32)	NOT NULL, '
-			. ' `hash`			VARCHAR(32)	NOT NULL	UNIQUE,'
-			. ' `regdate`		TIMESTAMP	DEFAULT		CURRENT_TIMESTAMP, '
-			. ' `lastlogin`		TIMESTAMP	DEFAULT 0,'
-			. ' PRIMARY KEY (`login`)'
-			. ' )'
-	. ' ENGINE = myisam;';
-	if (!$this->getDB()->query($sql))
-		throw new mysqli_sql_exception($this->getDB()->error);
-
-	return TRUE;
-	} */
 
 	###############################################Методы доступа к членам класса###############################################
 	public function setAccount(array $array) //Устанавливает логин и пароль. Инициирует переменную доступа.
@@ -47,8 +26,8 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 			if (is_string($array['login']) && is_string($array['pass'])) //Чертовски не хватает строгой типизации
 			{
 				$sql = 'SELECT * '
-						. ' FROM `user` '
-						. ' WHERE `login` = \'' . $array['login'] . '\' AND `pass` = \'' . $array['pass'] . '\'';
+					. ' FROM `user` '
+					. ' WHERE `login` = \'' . $array['login'] . '\' AND `pass` = \'' . $array['pass'] . '\'';
 					
 				$this->arUser = array("login" => $array['login'], "pass" => $array['pass']); //Заполняем аккаунт из входного массива (если sql-запрос будет успешен, то аккаунт перезапишется и добавится $access = TRUE)
 			}
@@ -58,8 +37,8 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 			$hash = $_SESSION['ID'] or $hash = $_COOKIE['ID'];
 			$hash = md5($hash); //Защита от команд злоумышленника в куках/сессиях
 			$sql = 'SELECT * '
-					. ' FROM `user` '
-					. '	WHERE `hash` = \'' . $hash . '\'';
+				. ' FROM `user` '
+				. '	WHERE `hash` = \'' . $hash . '\'';
 		}
 		else
 			return FALSE;

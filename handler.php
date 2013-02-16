@@ -17,6 +17,10 @@ elseif (isset($_GET['query']))
 {
 	$currentController = new Search_Controller();
 }
+elseif (isset($_GET['detail']))
+{
+	$currentController = new Detail_Controller();
+}
 else
 {
 	$currentController = new Controller;

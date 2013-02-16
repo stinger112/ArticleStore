@@ -1,4 +1,5 @@
 DirectoryIndex handler.php
+Options -Indexes
 
 # Настройки значений по-умолчанию модуля mysqli
 #php_value mysqli.default_host localhost
@@ -11,6 +12,7 @@ php_flag display_errors 0
 #php_value error_reporting "E_ALL & ~E_DEPRECATED & ~E_STRICT"
 # конец
 
+# Стартуем на каждой странице автоматическую поддержку сессий
 php_flag session.auto_start 1
 #php_flag session.use_trans_sid 1
 
@@ -39,3 +41,7 @@ AddHandler application/x-httpd-php .inc
 	Deny from all 
 </Files>
 # конец
+
+# Активируем Clean URL
+RewriteEngine on
+RewriteRule ^detail/([\w]{32})/? handler.php?name=$1&detail [L]

@@ -9,18 +9,19 @@
 	<div id="content">
 		<div id="upload">
 			<h3>Upload form:</h3>
-			<?php $this->displayForm('./forms/uplform.inc') ?>
+			<?php $this->displayPage('./forms/uplform.inc') ?>
 		</div>
 		<div id="search">
 			<h3>Search:</h3>
-			<?php $this->displayForm('./forms/searchform.inc') ?>
+			<?php $this->displayPage('./forms/searchform.inc') ?>
 			<a href="?exit" id="exitButtom"><input type="button" value="Выход" />
 			</a>
 		</div>
 	</div>
 	<div id="footer">
-		<h4>Result:</h4>
-		<?php $this->displayNotification() ?>
+		<p><?php $this->displayPaginationRef() ?></p>
+		<p><?php $this->displayNotification() ?></p>
+		<p><?php $this->displayResults() ?></p>
 	</div>
 </body>
 </html>

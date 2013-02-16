@@ -38,7 +38,7 @@ function createDB(mysqli $db)
 			. ' `id`		INT UNSIGNED	NOT NULL 	AUTO_INCREMENT,				'
 			. '	`question`	TINYTEXT		NOT NULL,								'
 			. '	`position`	VARCHAR(32)		NOT NULL,								'
-			. '	`case`		BOOLEAN			NOT NULL,								'
+			. '	`case`		BOOLEAN,												'
 			. '	`user_id`	INT	UNSIGNED	NOT NULL,								'
 			. '	`date`		TIMESTAMP		NOT NULL	DEFAULT CURRENT_TIMESTAMP,	'
 			. ' PRIMARY KEY (`id`),													'
