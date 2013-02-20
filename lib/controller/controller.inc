@@ -260,7 +260,7 @@ class Upload_Controller extends Controller
 				$this->getView()->addNotification("Текст успешно добавлен");
 		}
 		
-		//$this->clearTmp(); //На всяий случай чистим папку tmp
+		//$this->clearTmp(); //На всякий случай чистим папку tmp
 		$this->getView()->displayMain();
 	}
 }
@@ -360,18 +360,20 @@ class Detail_Controller extends Controller
 		}
 		$this->getAccount()->setSession();
 		
-		if ($arDetailRequest = $this->getFilteredData())
+		$arDetailRequest = $this->getFilteredData();
+		$text = new TextFile($this->getDB(), $arDetailRequest['name']);
+		
+		if ($text->getFileInfo())
 		{
-			
-			$path = './text/testuser/' . $arDetailRequest['name'];
-			$this->getView()->displayText(new TextFile($this->getDB(), $path));
+			$this->getView()->displayText($text);
 		}
-		else //Здесь должен быть НОРМАЛЬНЫЙ редирект на пользовательскую 404
+		else //Отправляем заголовки, загружаем страницу с 404 ошибкой
 		{
 			header("HTTP/1.0 404 Not Found");
-			echo '404 ololo';
+			header("HTTP/1.1 404 Not Found");
+			header("Status: 404 Not Found");
+			$this->getView()->displayPage('./errors/404.html');
 		}
-		
 	}
 }
 ?>

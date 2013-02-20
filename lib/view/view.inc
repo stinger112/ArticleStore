@@ -48,7 +48,7 @@ class View
 	
 	##########################################Отображение результатов###########################################
 	
-	public function displayPage($pagePath, $data)
+	public function displayPage($pagePath, $data = NULL)
 	{	
 		if (!@include($pagePath))
 			throw new BadMethodCallException("File \"$pagePath\" didn't load");
@@ -87,8 +87,9 @@ class View
 					{
 						$num = 1;
 						$textName = $text->getFileName();
+						$author = $text->getAuthor();
 						
-						echo "<h4><a href=\"detail/$textName\" target=\"_blank\">$textName</a></h4>";
+						echo "<h4><a href=\"detail/$textName/\" target=\"_blank\">$textName</a></h4>";
 						foreach ($arResult as $result)
 						{
 							echo "$num). $result<br>";
@@ -103,18 +104,21 @@ class View
 	
 	private function displayPaginationRef() //Отображает строку с номерами страниц пагинации (номер - ссылка)
 	{
-		extract($this->question->getQuestionInfo());
-		$length = $this->pagination->getLength();
-		
-		$NumOfPages = ceil(count($this->question->getTextList()) / $length);
-		$current = ceil($this->pagination->getStart() / $length);
-		
-		for ($i = 0; $i < $NumOfPages; $i++)
+		if ($this->question && $this->pagination)
 		{
-			if ($i == $current)
-				echo ($i+1) . ' '; //Делаем текущую страницу числом без ссылки
-			else
-				echo "<a href=\"?query=$question&case=$case&position=$position&view=$view&start=" . ($i*$length) . "&nostat\">" . ($i+1) . "</a> ";
+			extract($this->question->getQuestionInfo());
+			$length = $this->pagination->getLength();
+			
+			$NumOfPages = ceil(count($this->question->getTextList()) / $length);
+			$current = ceil($this->pagination->getStart() / $length);
+			
+			for ($i = 0; $i < $NumOfPages; $i++)
+			{
+				if ($i == $current)
+					echo ($i+1) . ' '; //Делаем текущую страницу числом без ссылки
+				else
+					echo "<a href=\"?query=$question&case=$case&position=$position&view=$view&start=" . ($i*$length) . "&nostat\">" . ($i+1) . "</a> ";
+			}
 		}
 	}
 }

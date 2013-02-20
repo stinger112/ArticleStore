@@ -5,12 +5,17 @@
 </head>
 
 <body>
+<?php 
+	$author = $data->getAuthor();
+	$name = $data->getFileName();
+	$path ="../../download/$author/$name.txt";
+?>
 	<div id="fileinfo">
 		<h3>File info:</h3>
-		<p>Автор: <?php echo $data->getAuthor() ?></p>
+		<p>Автор: <?php echo $author ?></p>
 		<p>Оригинальное имя: <?php echo $data->getFileInfo('original_name') ?></p>
 		<p>Дата добавления: <?php echo $data->getFileInfo('date') ?></p>
-		<a href="text/" style="text-decoration: none"><input type="button" value="Скачать оригинал" /></a>
+		<a href="<?php echo $path ?>" style="text-decoration: none">Скачать оригинал</a>
 	</div>
 	<div id="text">
 		<h3>Text:</h3>

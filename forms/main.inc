@@ -14,8 +14,8 @@
 		<div id="search">
 			<h3>Search:</h3>
 			<?php $this->displayPage('./forms/searchform.inc') ?>
-			<a href="?exit" id="exitButtom"><input type="button" value="Выход" />
-			</a>
+			<a href="?exit" id="exitButtom"><input type="button" value="Выход" /></a>
+			<p><?php $this->displayPage('./forms/searchexample.inc') ?></p>
 		</div>
 	</div>
 	<div id="footer">

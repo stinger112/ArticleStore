@@ -6,8 +6,8 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 {
 	/* $arFileInfo cодержит следующие поля (согласно структуре БД):
 	* id
-	* path
-	* user_id
+	* name
+	* login
 	* original_name
 	* comment
 	* date
@@ -37,26 +37,24 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 	}
 	
 	###############################################Методы доступа к членам класса###############################################
-	public function getFileInfo($field)
+	public function getFileInfo($field = NULL)
 	{
 		return isset($field) ? $this->arFileInfo[$field] : $this->arFileInfo;
 	}
 	
 	public function getText() //Получить текст в виде строки
 	{
-		$path = $this->arFileInfo['path'];
-		return file_get_contents($path);
+		return file_get_contents('./text/' . $this->arFileInfo['login'] . '/' . $this->arFileInfo['name']);
 	}
 	
 	public function getFileName()
 	{
-		return substr($this->arFileInfo['path'], strlen($this->arFileInfo['path']) - 32);
+		return $this->arFileInfo['name'];
 	}
 	
 	public function getAuthor()
 	{
-		if (preg_match('./text/(.+)/[\w]{32}', $this->arFileInfo['path'], $mathes))
-			return $mathes[1][0];
+		return $this->arFileInfo['login'];
 	}
 
 	public function getResult()
@@ -64,15 +62,15 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 		return $this->arResult;
 	}
 	
-	static public function getFilePathList (mysqli $db) //Вернет массив путей текстовых файлов или пустой массив
+	static public function getFileList (mysqli $db) //Вернет массив имен текстовых файлов или пустой массив
 	{
-		$sql = 'SELECT path '
+		$sql = 'SELECT name '
 			. '	FROM `files` ';
 		if ($arFilePath = $db->query($sql)->fetch_all(MYSQLI_ASSOC)) //Получили массив путей
 		{
 			foreach ($arFilePath as &$row) //Необходимо для приведения результатов fetch_all() к одномерному массиву
 			{
-				$row = $row['path'];
+				$row = $row['name'];
 			}
 		}
 		else
@@ -81,16 +79,20 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 		return $arFilePath;
 	}
 	############################################################################################################################
-	private function associateWithText($path) //Ассоциирует объект TextFile с определенным файлом (согласно БД)
+	private function associateWithText($filename) //Ассоциирует объект TextFile с определенным файлом (согласно БД)
 	{
-		if (is_string($path) && is_file($path))
+		if (32 == strlen($filename))
 		{
-			$sql = 'SELECT * '
-				. '	FROM `files` '
-				. '	WHERE `path` = \'' . $path . '\'';
-			if ($qRes = $this->getDB()->query($sql))
+			$sql = <<<SQL
+SELECT files.id, name, users.login, original_name, comment, date
+FROM files
+	JOIN users
+		ON files.user_id = users.id
+		AND files.name = '$filename'
+SQL;
+			if ($arRes = $this->getDB()->query($sql)->fetch_assoc())
 			{
-				if ($arRes = $qRes->fetch_assoc())
+				if (is_file('./text/' . $arRes['login'] . '/' . $arRes['name']))
 				{
 					$this->arFileInfo = $arRes;
 					return TRUE;
@@ -119,15 +121,15 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 	
 				if (!is_dir($destination))
 					if (!mkdir($destination))
-					throw new RuntimeException("Can't create $destination directory for user " . $account->getLogin());
+						throw new RuntimeException("Can't create $destination directory for user " . $account->getLogin());
 	
-				$destination .= "/" . $name; //Этот относительный путь потом добавляется в БД
+				$destination .= "/" . $name;
 				rename("./tmp/$name", $destination);
-				$sql = 'INSERT INTO files(path, original_name, user_id, comment)'
-					. "	VALUES ('$destination', '$original_name', '" . $account->getUserID() . "', '$comment')";
+				$sql = 'INSERT INTO files(name, original_name, user_id, comment)'
+					. "	VALUES ('$name', '$original_name', '" . $account->getUserID() . "', '$comment')";
 				if ($this->getDB()->query($sql))
 				{
-					$this->associateWithText($destination);	//Извлекаются все данные соответственно структуре БД
+					$this->associateWithText($name);	//Извлекаются все данные соответственно структуре БД
 					addInLog("File '$name' uploaded", $account->getLogin());
 				}
 				else
@@ -232,6 +234,11 @@ class Question extends Model_Common
 		$this->arQuestionInfo = $arQuestionData;
 	}
 	
+	function __toString()
+	{
+		return $this->arQuestionInfo['question'];
+	}
+	
 	public function getQuestionInfo($field)
 	{
 		return isset($field) ? $this->arQuestionInfo[$field] : $this->arQuestionInfo;
@@ -246,9 +253,9 @@ class Question extends Model_Common
 	{
 		extract($this->arQuestionInfo); // Создаем и заполняем переменные
 		
-		foreach (TextFile::getFilePathList($this->getDB()) as $path) //Делаем массив объектов TextFile
+		foreach (TextFile::getFileList($this->getDB()) as $name) //Делаем массив объектов TextFile
 		{
-			$tmpFile = new TextFile($this->getDB(), $path);
+			$tmpFile = new TextFile($this->getDB(), $name);
 		
 			if ($tmpFile->search($question, $position, $case, $view)) //Выполняем поиск в текущем файле
 				$this->arTextList[] = $tmpFile;
@@ -266,24 +273,29 @@ class Question extends Model_Common
 		return $this->arTextList;
 	}
 	
-	/* ---!!!Пока не работает!!!--- */
-	static public function getTopQuestionsList($QuestNum = 5) //Возвращает массив объектов Question
+	static public function getTopQuestionsList($questNum = 5) //Возвращает массив топовых запросов
 	{
-		if (filter_var($QuestNum, FILTER_VALIDATE_INT, array( 'options' => array( 'min_range' => 1))))
+		if (filter_var($questNum, FILTER_VALIDATE_INT, array( 'options' => array( 'min_range' => 1))))
 		{
-			//Запрос должен возвращать строки сгруппированные по числу повторений поля question
-			$sql = 'SELECT * ' 
-				. '	FROM `question` ';
+			$arQuestions = array();
+			$db = new mysqli(MYSQL_SERVER, MYSQL_LOGIN, MYSQL_PASSWORD, MYSQL_NAME);
+			
+			$sql = <<<SQL
+SELECT question
+	FROM questions
+	GROUP BY question
+	ORDER BY COUNT(*) DESC
+	LIMIT $questNum
+SQL;
 			if ($qResult = $db->query($sql))
 			{
-				while (($arResult = $qResult->fetch_array(MYSQLI_ASSOC)) || $i < 5)
+				for ($i = 0 ; $i < $questNum && $row = $qResult->fetch_array(MYSQLI_ASSOC) ; $i++) //Достаем каждую следующую строку как массив
 				{
-					
-					$i++;
+					$arQuestions[] = $row['question'];
 				}
+				
+				return $arQuestions;
 			}
-			else
-				$arFilePath = array();
 		}
 	}
 }

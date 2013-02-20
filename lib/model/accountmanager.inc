@@ -26,7 +26,7 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 			if (is_string($array['login']) && is_string($array['pass'])) //Чертовски не хватает строгой типизации
 			{
 				$sql = 'SELECT * '
-					. ' FROM `user` '
+					. ' FROM `users` '
 					. ' WHERE `login` = \'' . $array['login'] . '\' AND `pass` = \'' . $array['pass'] . '\'';
 					
 				$this->arUser = array("login" => $array['login'], "pass" => $array['pass']); //Заполняем аккаунт из входного массива (если sql-запрос будет успешен, то аккаунт перезапишется и добавится $access = TRUE)
@@ -37,7 +37,7 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 			$hash = $_SESSION['ID'] or $hash = $_COOKIE['ID'];
 			$hash = md5($hash); //Защита от команд злоумышленника в куках/сессиях
 			$sql = 'SELECT * '
-				. ' FROM `user` '
+				. ' FROM `users` '
 				. '	WHERE `hash` = \'' . $hash . '\'';
 		}
 		else
@@ -87,7 +87,7 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 		{
 			$login = $this->getLogin();
 			$pass = $this->getPassword();
-			$sql = 'INSERT INTO user(login, pass, hash)'
+			$sql = 'INSERT INTO users(login, pass, hash)'
 					. "	VALUES ('$login', '$pass', '" . session_id() . "')"; //Заполняем уникальным значением SID (нужно для БД, но в дальнейшем перезаписывается)
 				
 			if ($this->getDB()->query($sql))
@@ -134,7 +134,7 @@ class AccountManager extends Model_Common//Инкапсулирует логик
 				$hash = md5(session_id()); //Формируем случайный хеш
 				$_SESSION['ID'] = $hash;
 
-				$sql = 'UPDATE `user` '
+				$sql = 'UPDATE `users` '
 						. " SET `hash` = '" . md5($hash) . "', `lastlogin` = NOW()"
 						. " WHERE `id` = '" . $this->getUserID() . "'";
 					

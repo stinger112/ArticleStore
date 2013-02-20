@@ -44,4 +44,6 @@ AddHandler application/x-httpd-php .inc
 
 # Активируем Clean URL
 RewriteEngine on
-RewriteRule ^detail/([\w]{32})/? handler.php?name=$1&detail [L]
+ErrorDocument 404 /errors/404.html
+RewriteRule ^detail/(\w{32})/?$			handler.php?name=$1&detail
+RewriteRule ^download/([-_.\w]{1,32})/(\w{32}).txt$		text/$1/$2					[L]
