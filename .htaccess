@@ -1,5 +1,5 @@
 DirectoryIndex handler.php
-Options -Indexes
+#Options -Indexes
 
 # Настройки значений по-умолчанию модуля mysqli
 #php_value mysqli.default_host localhost

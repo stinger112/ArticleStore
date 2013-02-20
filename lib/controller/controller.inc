@@ -211,9 +211,7 @@ class Upload_Controller extends Controller
 					$arOut['name'] = hash('md5', mt_rand());
 					move_uploaded_file($_FILES['file']['tmp_name'], './tmp/' . $arOut['name']);
 					
-					//Добавляем оригинальное имя файла
-					$arOut['original_name'] = strip_tags($_FILES['file']['name']);
-					$arOut['original_name'] = $this->getDB()->real_escape_string($arOut['original_name']);
+					$arOut['original_name'] = $this->getDB()->real_escape_string($_FILES['file']['name']); //Добавляем оригинальное имя файла. Проверка его вывода уже непосредственно на странице.
 				}	
 				elseif ($arInput['text'] && strlen($arInput['text']) <= MAX_TEXT_SIZE)
 				{
@@ -229,7 +227,7 @@ class Upload_Controller extends Controller
 				
 				if ($arInput['comment'])
 				{
-					$arOut['comment'] = strip_tags($arInput['comment']);
+					$arOut['comment'] = htmlspecialchars($arInput['comment'], ENT_NOQUOTES|ENT_HTML5);
 					$arOut['comment'] = $this->getDB()->real_escape_string($arOut['comment']);
 				}
 					
@@ -280,7 +278,6 @@ class Search_Controller extends Controller
 			{
 				$arOut['question'] = mb_convert_encoding($arInput['query'], mb_detect_encoding($arInput['query']));
 				$arOut['question'] = trim($arOut['question']);
-				$arOut['question'] = strip_tags($arOut['question']);
 				$arOut['question'] = $this->getDB()->real_escape_string($arOut['question']);
 				
 				$arOut['case'] = $arInput['case'] ? '1' : '0';

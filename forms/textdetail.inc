@@ -13,7 +13,7 @@
 	<div id="fileinfo">
 		<h3>File info:</h3>
 		<p>Автор: <?php echo $author ?></p>
-		<p>Оригинальное имя: <?php echo $data->getFileInfo('original_name') ?></p>
+		<p>Оригинальное имя: <?php echo htmlentities($data->getFileInfo('original_name'), ENT_QUOTES|ENT_HTML5) ?></p>
 		<p>Дата добавления: <?php echo $data->getFileInfo('date') ?></p>
 		<a href="<?php echo $path ?>" style="text-decoration: none">Скачать оригинал</a>
 	</div>

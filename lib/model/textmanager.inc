@@ -64,18 +64,18 @@ class TextFile extends Model_Common //Инкапсулирует структу�
 	
 	static public function getFileList (mysqli $db) //Вернет массив имен текстовых файлов или пустой массив
 	{
+		$arFilePath = array();
+		
 		$sql = 'SELECT name '
 			. '	FROM `files` ';
-		if ($arFilePath = $db->query($sql)->fetch_all(MYSQLI_ASSOC)) //Получили массив путей
+		if ($qResult = $db->query($sql))
 		{
-			foreach ($arFilePath as &$row) //Необходимо для приведения результатов fetch_all() к одномерному массиву
+			while ($row = $qResult->fetch_array(MYSQLI_ASSOC)) //Достаем каждую следующую строку как массив
 			{
-				$row = $row['name'];
+				$arFilePath[] = $row['name'];
 			}
 		}
-		else
-			$arFilePath = array();
-	
+
 		return $arFilePath;
 	}
 	############################################################################################################################

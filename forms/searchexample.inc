@@ -2,7 +2,7 @@
 <?php 
 foreach (Question::getTopQuestionsList() as $index => $query)
 {
-	echo ($index + 1) . ' ' . $query . '<br>';
+	echo ($index + 1) . ' ' . (htmlspecialchars($query, ENT_NOQUOTES|ENT_HTML5)) . '<br>';
 }
 ?>
 </p>
